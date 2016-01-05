@@ -106,10 +106,10 @@ class PersistentClientService(service.Service, object):
     _delayedCalls = None
     _delayedCallsCnt = 0
 
-    def __init__(self, endpoint, factory, **kwargs):
+    def __init__(self, endpoint_obj, factory_obj, **kwargs):
 
-        self.endpoint = endpoint
-        self.factory = factory
+        self.endpoint = endpoint_obj
+        self.factory = factory_obj
 
         self.reconnect_delay = self.reconnect_initial_delay
 
@@ -472,9 +472,13 @@ class PersistentClientsCollectionService(service.MultiService):
         if not params.get('endpoint'):
             ep = "tcp:host=%s:port=%s" % (params['host'], params['port'])
         else:
-            assert not params.get('host')
-            assert not params.get('port')
+            port = params.get('port')
+            host = params.get('host')
             ep = params['endpoint']
+            if host or port:
+                logger.warning(
+                    "Ignore host/port %s/%s, endpoint %r used instead",
+                    host, port, ep)
         return endpoints.clientFromString(reactor, ep)
 
     def buildClientFactory(self, params):
@@ -486,10 +490,17 @@ class PersistentClientsCollectionService(service.MultiService):
             s.protocolProxiedMethods = self.protocolProxiedMethods
         return s
 
+    def _prepareParams(self, params):
+        p = dict(self.defaultParams)
+	if 'endpoint' in params:
+            p.pop('host')
+            p.pop('port')
+        p.update(params)
+	return p
+
     def _initClientService(self, connection, params):
 
-        p = dict(self.defaultParams)
-        p.update(params)
+        p = self._prepareParams(params)
         logger.debug("create protocol service %r, params %r", connection, p)
 
         factory = self.buildClientFactory(p)
