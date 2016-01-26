@@ -4,6 +4,7 @@ import types
 import os
 import uuid
 import collections
+import re
 
 from zope import interface
 from twisted.python import components, reflect
@@ -35,7 +36,11 @@ def _coerce_conf_file(fn):
 def load_conf_py(fname):
     import imp
     fname = _coerce_conf_file(fname)
-    return imp.load_source(fname, fname)
+    mname = "twoost__conf__" + "".join(
+        c if c.isalnum() else "_%x" % ord(c)
+        for c in fname
+    )
+    return imp.load_source(mname, fname)
 
 
 def load_conf_obj(obj):
